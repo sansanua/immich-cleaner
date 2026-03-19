@@ -1,0 +1,18 @@
+services:
+  immich-cleaner:
+    build: .
+    container_name: immich_cleaner
+    env_file: .env
+    environment:
+      CONCURRENCY: ${CONCURRENCY:-1}
+      MODE: ${MODE:-continuous}
+      CHECK_INTERVAL: ${CHECK_INTERVAL:-3600}
+    volumes:
+      - cleaner-data:/data
+    restart: unless-stopped
+    # Uncomment if Immich is not reachable by hostname from inside the container:
+    # extra_hosts:
+    #   - "immich.local:192.168.1.100"
+
+volumes:
+  cleaner-data:
