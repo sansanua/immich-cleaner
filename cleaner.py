@@ -37,6 +37,7 @@ MAX_ASSETS = int(os.environ.get("MAX_ASSETS", "0"))  # 0 = unlimited, for testin
 
 ALBUM_TRASH = os.environ.get("ALBUM_TRASH", "To Delete")
 ALBUM_REVIEW = os.environ.get("ALBUM_REVIEW", "To Review")
+WRITE_DESCRIPTIONS = os.environ.get("WRITE_DESCRIPTIONS", "false").lower() in ("true", "1", "yes")
 
 SYSTEM_PROMPT = os.environ.get("SYSTEM_PROMPT", """\
 You are a photo analyzer for a personal photo library.
@@ -370,7 +371,7 @@ def process_asset(asset_id: str) -> tuple[str, str, str, str] | None:
     if thumb is None:
         return None
     category, reason, description = analyze_image(thumb)
-    if description:
+    if WRITE_DESCRIPTIONS and description:
         update_description(asset_id, description)
     return asset_id, category, reason, description
 
@@ -540,8 +541,8 @@ def main():
         sys.exit(1)
 
     log.info(
-        "Immich Cleaner starting — mode=%s, model=%s, concurrency=%d",
-        MODE, OLLAMA_MODEL, CONCURRENCY,
+        "Immich Cleaner starting — mode=%s, model=%s, concurrency=%d, descriptions=%s",
+        MODE, OLLAMA_MODEL, CONCURRENCY, WRITE_DESCRIPTIONS,
     )
     log.info("Immich: %s | Ollama: %s", IMMICH_API_URL, OLLAMA_URL)
 

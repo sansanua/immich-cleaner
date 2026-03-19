@@ -76,10 +76,17 @@ All settings via environment variables in `.env`:
 | `MODE` | `continuous` | `once` — process all and exit; `continuous` — process all, then watch for new |
 | `CHECK_INTERVAL` | `3600` | Seconds between scans for new photos (continuous mode) |
 | `MAX_ASSETS` | `0` | Limit photos to process (0 = unlimited, useful for testing) |
+| `WRITE_DESCRIPTIONS` | `false` | Write AI descriptions to Immich photo metadata (see warning below) |
 | `ALBUM_TRASH` | `To Delete` | Album name for TRASH photos |
 | `ALBUM_REVIEW` | `To Review` | Album name for REVIEW photos |
 
 > **Note:** `host.docker.internal` refers to your host machine from inside the Docker container. This works out of the box on Docker Desktop (macOS/Windows). On Linux, you may need to use your host's LAN IP instead (e.g. `http://192.168.1.100:2283`).
+
+### About descriptions
+
+When `WRITE_DESCRIPTIONS=true`, the AI generates a one-sentence description for each photo and writes it to the Immich description field. This makes photos searchable by content (e.g. "dog on the beach").
+
+**This is disabled by default** because it overwrites any existing descriptions you may have added manually. Enable it only if you're comfortable with this.
 
 ## Performance
 
@@ -146,6 +153,24 @@ The vision model receives each photo's thumbnail and returns a category + descri
 - **KEEP**: people, pets, places, events, food, nature, selfies — any intentional photo. When unsure, defaults to KEEP
 
 You can customize these rules by overriding `SYSTEM_PROMPT` and `USER_PROMPT` environment variables.
+
+## Troubleshooting
+
+**Container exits immediately:**
+Check logs with `docker compose logs`. Most likely `IMMICH_API_KEY` is not set or Ollama is not reachable.
+
+**"Ollama unavailable" in logs:**
+Make sure Ollama is running and the URL is correct. From inside Docker, `localhost` means the container itself — use `host.docker.internal` or your host's LAN IP.
+
+**Slow processing:**
+Increase `CONCURRENCY` (2-4 is usually safe). Speed depends primarily on your GPU/CPU and the model size.
+
+**Want to reprocess all photos:**
+Delete the SQLite database: `docker volume rm immich-cleaner_cleaner-data`, then restart.
+
+## Inspired by
+
+- [immich-analyze](https://github.com/timasoft/immich-analyze) — AI-powered image description generator for Immich (Rust)
 
 ## License
 
