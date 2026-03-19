@@ -62,7 +62,7 @@ Description rules:
 - What/who is in the photo, where, what's happening
 - In English""")
 
-CATEGORIES = {"TRASH", "REVIEW", "KEEP"}
+CATEGORIES = ("TRASH", "REVIEW", "KEEP")  # order matters: first match wins in parse_response
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -117,11 +117,6 @@ def init_db() -> sqlite3.Connection:
             value TEXT NOT NULL
         )"""
     )
-    # Migration: add description column if missing (from older schema)
-    try:
-        conn.execute("ALTER TABLE processed ADD COLUMN description TEXT")
-    except sqlite3.OperationalError:
-        pass  # column already exists
     conn.commit()
     return conn
 
@@ -176,7 +171,7 @@ def immich_get(path: str, **kwargs) -> requests.Response:
 def immich_post(path: str, json_data=None, **kwargs) -> requests.Response:
     return requests.post(
         f"{IMMICH_API_URL}/api{path}",
-        headers={**immich_headers(), "Content-Type": "application/json"},
+        headers=immich_headers(),
         json=json_data,
         timeout=30,
         **kwargs,
@@ -186,7 +181,7 @@ def immich_post(path: str, json_data=None, **kwargs) -> requests.Response:
 def immich_put(path: str, json_data=None, **kwargs) -> requests.Response:
     return requests.put(
         f"{IMMICH_API_URL}/api{path}",
-        headers={**immich_headers(), "Content-Type": "application/json"},
+        headers=immich_headers(),
         json=json_data,
         timeout=30,
         **kwargs,
@@ -333,10 +328,6 @@ def parse_response(text: str) -> tuple[str, str, str]:
     m = re.search(r"DESCRIPTION:\s*(.+)", clean, re.IGNORECASE)
     if m:
         description = m.group(1).strip()
-
-    if not category or category not in CATEGORIES:
-        category = "KEEP"
-        reason = f"unparseable: {text[:80]}"
 
     return category, reason, description
 
