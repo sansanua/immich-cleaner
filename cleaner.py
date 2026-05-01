@@ -196,15 +196,19 @@ def check_immich() -> bool:
         return False
 
 
-def search_assets(page: int = 1, created_after: str | None = None) -> dict:
+def search_assets(page: int = 1, updated_after: str | None = None) -> dict:
     body = {
         "type": "IMAGE",
         "size": PAGE_SIZE,
         "page": page,
         "order": "asc",
     }
-    if created_after:
-        body["createdAfter"] = created_after
+    if updated_after:
+        # Filter on assets.updatedAt (advances on upload + edits).
+        # Do NOT use `createdAfter` — that filter operates on `fileCreatedAt`
+        # (EXIF date taken), so backdated uploads of older photos would be
+        # silently skipped.
+        body["updatedAfter"] = updated_after
     r = immich_post("/search/metadata", json_data=body)
     r.raise_for_status()
     return r.json()
@@ -396,7 +400,7 @@ def flush_batches(
 
 def collect_asset_ids(
     processed_ids: set,
-    created_after: str | None = None,
+    updated_after: str | None = None,
 ) -> list[str]:
     """Collect unprocessed asset IDs from Immich."""
     page = 1
@@ -404,7 +408,7 @@ def collect_asset_ids(
 
     while not shutdown_requested:
         try:
-            data = search_assets(page=page, created_after=created_after)
+            data = search_assets(page=page, updated_after=updated_after)
         except requests.RequestException as e:
             log.error("Search failed on page %d: %s", page, e)
             break
@@ -435,7 +439,7 @@ def run_scan(
     conn: sqlite3.Connection,
     processed_ids: set,
     album_ids: dict[str, str],
-    created_after: str | None = None,
+    updated_after: str | None = None,
 ):
     """Run a scan (bulk or incremental). Returns number of processed photos."""
     counts = {"TRASH": 0, "REVIEW": 0, "KEEP": 0}
@@ -443,7 +447,7 @@ def run_scan(
     total_processed = 0
     scan_start = time.time()
 
-    all_asset_ids = collect_asset_ids(processed_ids, created_after)
+    all_asset_ids = collect_asset_ids(processed_ids, updated_after)
     total_assets = len(all_asset_ids)
 
     if total_assets == 0:
@@ -585,7 +589,7 @@ def main():
                     log.warning("Services still unavailable after retries, sleeping until next interval")
                     continue
 
-        run_scan(conn, processed_ids, album_ids, created_after=last_scan)
+        run_scan(conn, processed_ids, album_ids, updated_after=last_scan)
         set_state(conn, "last_scan_at", datetime.now(timezone.utc).isoformat())
 
     log.info("Shutdown complete")
